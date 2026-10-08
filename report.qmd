@@ -1,0 +1,32 @@
+---
+title: "STA5073Z Assignment 2: Writer Identification from Handwriting"
+author: "Group members' names and student numbers go here"
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  echo: true
+---
+
+## Introduction
+
+## Data exploration
+
+## Train / validation / test strategy
+
+## CNN: writer identification
+
+## Siamese network: same-writer matching
+
+## Hyperparameter sensitivity
+
+## Comparing the two approaches
+
+## Conclusion
+
+## Plagiarism declaration
+
+## AI use statement
+
+## References

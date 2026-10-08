@@ -1,0 +1,13 @@
+STA5073Z Assignment 2 — Group members and roles
+=================================================
+
+(a) Group members and roles:
+- Daniele Sguazzin — [role / what you did, fill in as you go]
+- [Member 2 name] — [role]
+- [Member 3 name] — [role]
+
+(b) GitHub Pages website link:
+[fill in after Step 11 — "quarto publish gh-pages"]
+
+(c) GitHub repository link:
+https://github.com/DanSguazzin17/STA5073Z-Assignment-2
