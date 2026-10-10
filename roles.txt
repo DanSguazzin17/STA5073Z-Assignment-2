@@ -3,7 +3,7 @@ STA5073Z Assignment 2 — Group members and roles
 
 (a) Group members and roles:
 - Daniele Sguazzin — [role / what you did, fill in as you go]
-- [Member 2 name] — [role]
+- Lucas Henze — [role]
 - [Member 3 name] — [role]
 
 (b) GitHub Pages website link:
