@@ -35,6 +35,7 @@ jobs:
         shell: Rscript {0}
 
       - name: Load shared functions
+        if: hashFiles('R/setup.R') != ''   # skip on branches without R/ (e.g. main before merge)
         run: |
           here::i_am("R/setup.R")
           source(here::here("R", "setup.R"))
