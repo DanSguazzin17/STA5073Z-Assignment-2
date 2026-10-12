@@ -314,3 +314,32 @@ features |>
 
 # Empty or nearly empty images
 features |> slice_min(ink_area, n = 5) |> select(image_id:replicate, ink_area, ink_total)
+
+
+
+
+# Pixel-level sum-of-squares decomposition per digit:
+# between writers, between sessions within writer, between replicates within session
+pixel_variance <- function(d) {
+  rows   <- meta$digit == d
+  x      <- pixels[rows, ]
+  writer <- as.character(meta$person_id[rows])
+  cell   <- paste(writer, meta$session[rows])
+  
+  # balanced design: 250 images per writer, 50 per writer x session
+  writer_mean <- rowsum(x, writer) / 250
+  cell_mean   <- rowsum(x, cell) / 50
+  grand_mean  <- colMeans(x)
+  
+  ss <- c(
+    writer            = sum(sweep(writer_mean[writer, ], 2, grand_mean)^2),
+    session_in_writer = sum((cell_mean[cell, ] - writer_mean[writer, ])^2),
+    replicate         = sum((x - cell_mean[cell, ])^2)
+  )
+  tibble(digit = d, component = names(ss), share = ss / sum(ss))
+}
+
+map(0:4, pixel_variance) |>
+  list_rbind() |>
+  pivot_wider(names_from = component, values_from = share) |>
+  mutate(across(-digit, \(s) round(100 * s, 1)))
