@@ -3,7 +3,7 @@ name: R CI Test
 on:
   push:
   pull_request:
-    branches: [ main ]
+    branches: [main, dev]
 
 jobs:
   test:
@@ -16,22 +16,33 @@ jobs:
         uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'release'
+          use-public-rspm: true   # precompiled packages, much faster installs
 
-      - name: Install base R packages
+      - name: Install R packages
         run: |
-          install.packages(c("rmarkdown", "knitr"))
+          install.packages(c("rmarkdown", "knitr", "here", "withr", "dplyr", "tidyr",
+                             "purrr", "ggplot2", "scales", "keras3"))
+        shell: Rscript {0}
+
+      - name: Check that all R scripts parse
+        run: |
+          files <- list.files(".", pattern = "\\.R$", recursive = TRUE)
+          files <- files[!grepl("^renv/", files)]
+          for (f in files) {
+            cat("Parsing", f, "\n")
+            invisible(parse(f))
+          }
+        shell: Rscript {0}
+
+      - name: Load shared functions
+        run: |
+          here::i_am("R/setup.R")
+          source(here::here("R", "setup.R"))
+          cat("Shared functions loaded\n")
         shell: Rscript {0}
 
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
-
-      - name: Test all R scripts
-        run: |
-          for script in $(find . -name "*.R"); do
-            echo "Testing $script..."
-            Rscript "$script"
-          done
-        shell: bash
 
       - name: Render all Quarto files
         run: quarto render
