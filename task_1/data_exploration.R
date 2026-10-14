@@ -2,19 +2,10 @@
 # Explore images and metadata, show examples across people, digits and sessions,
 # and look for sources of variation and limitations of the simulated data.
 
-rm(list=objects())
-
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(ggplot2)
-
 # here() resolves paths from the project root (the folder holding the .Rproj file),
 # so the script runs unchanged on every machine and from any working directory
-
-# Paths are resolved from the project root, so the script runs unchanged on every machine.
-# Requires the working directory to be inside the repo (open the .Rproj file).
 here::i_am("task_1/data_exploration.R")
+source(here::here("R", "setup.R"))
 
 data_path  <- here::here("data", "handwriting.rds")
 figure_dir <- here::here("task_1", "exploration_plots")
@@ -22,8 +13,6 @@ dir.create(figure_dir, recursive = TRUE, showWarnings = FALSE)
 
 image_size <- 28
 session_colours <- c("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4")
-
-theme_set(theme_minimal(base_size = 11))
 
 
 # 1. Load data and check structure ------------------------------------------
@@ -91,13 +80,6 @@ plot_images <- function(long, rows, cols, fill = value, title = NULL, subtitle =
     )
 }
 
-save_figure <- function(plot, name, width, height) {
-  ggsave(file.path(figure_dir, paste0(name, ".png")), plot,
-         width = width, height = height, dpi = 150, bg = "white")
-  if (interactive()) print(plot)
-  invisible(plot)
-}
-
 
 # 2. Example images ----------------------------------------------------------
 
@@ -107,7 +89,7 @@ meta |>
   pull(image_id) |>
   images_long() |>
   plot_images(digit, person_id, title = "One example per writer and digit (session 1)") |>
-  save_figure("examples_writer_by_digit", width = 16, height = 5)
+  save_figure("examples_writer_by_digit", figure_dir, width = 16, height = 5)
 
 # Every writer x every session, one figure per digit
 walk(sort(unique(meta$digit)), \(d) {
@@ -116,7 +98,7 @@ walk(sort(unique(meta$digit)), \(d) {
     pull(image_id) |>
     images_long() |>
     plot_images(session, person_id, title = paste("Digit", d, "- one example per writer and session")) |>
-    save_figure(paste0("examples_writer_by_session_digit_", d), width = 16, height = 5)
+    save_figure(paste0("examples_writer_by_session_digit_", d), figure_dir, width = 16, height = 5)
 })
 
 # Replicates within a session: how much does a single writer vary from image to image?
@@ -134,7 +116,7 @@ example_writers <- sort(sample(unique(meta$person_id), 3))
 
 walk(example_writers, \(p) {
   plot_replicates(p, d = 2) |>
-    save_figure(paste0("examples_replicates_writer_", p), width = 11, height = 5)
+    save_figure(paste0("examples_replicates_writer_", p), figure_dir, width = 11, height = 5)
 })
 
 
@@ -145,18 +127,18 @@ digit_summary <- summarise_images(digit) |>
   pivot_longer(c(mean, sd), names_to = "statistic")
 
 plot_images(digit_summary, statistic, digit, title = "Mean and sd image per digit") |>
-  save_figure("mean_sd_by_digit", width = 8, height = 3.6)
+  save_figure("mean_sd_by_digit", figure_dir, width = 8, height = 3.6)
 
 # A writer's "style template": mean image per writer and digit, pooled over sessions
 summarise_images(person_id, digit) |>
   plot_images(digit, person_id, fill = mean, title = "Mean image per writer and digit") |>
-  save_figure("mean_writer_by_digit", width = 16, height = 5)
+  save_figure("mean_writer_by_digit", figure_dir, width = 16, height = 5)
 
 # Session shift: mean image per writer and session for a single digit
 summarise_images(person_id, digit, session) |>
   filter(digit == 2) |>
   plot_images(session, person_id, fill = mean, title = "Digit 2 - mean image per writer and session") |>
-  save_figure("mean_writer_by_session_digit_2", width = 16, height = 5)
+  save_figure("mean_writer_by_session_digit_2", figure_dir, width = 16, height = 5)
 
 
 # 4. Simple image features ---------------------------------------------------
@@ -195,7 +177,7 @@ feature_by_writer <- ggplot(features_long, aes(factor(person_id), value)) +
   facet_wrap(vars(feature), scales = "free_y", ncol = 2) +
   labs(title = "Image features by writer", x = "Writer", y = NULL)
 
-save_figure(feature_by_writer, "features_by_writer", width = 12, height = 10)
+save_figure(feature_by_writer, "features_by_writer", figure_dir, width = 12, height = 10)
 
 # Do sessions shift a writer? One line per writer; parallel lines would mean a
 # session effect shared by all writers, crossing lines a writer-specific one
@@ -209,7 +191,7 @@ feature_by_session <- features_long |>
        subtitle = "One line per writer, averaged over digits and replicates",
        x = "Session", y = NULL)
 
-save_figure(feature_by_session, "features_by_session", width = 12, height = 6)
+save_figure(feature_by_session, "features_by_session", figure_dir, width = 12, height = 6)
 
 # Share of each feature's variance attributable to the design factors.
 # The design is balanced, so the sums of squares add up without ambiguity.
@@ -251,7 +233,39 @@ variance_plot <- ggplot(variance_shares, aes(share, feature, fill = component)) 
        x = "Share of total sum of squares", y = NULL, fill = NULL) +
   theme(panel.grid.major.y = element_blank())
 
-save_figure(variance_plot, "feature_variance_shares", width = 10, height = 4.5)
+save_figure(variance_plot, "feature_variance_shares", figure_dir, width = 10, height = 4.5)
+
+# Condensed into four sources: digit, writer (incl. writer x digit), session drift
+# (all terms involving session) and replicates
+feature_groups <- c(
+  "Digit" = "Digit", "Writer" = "Writer", "Writer x digit" = "Writer",
+  "Session" = "Session drift", "Writer x session" = "Session drift",
+  "Digit x session" = "Session drift", "Writer x digit x session" = "Session drift",
+  "Within cell (replicates)" = "Replicates"
+)
+group_colours <- c("Digit" = "#b9c4d0", "Writer" = "#2a78d6",
+                   "Session drift" = "#eb6834", "Replicates" = "grey75")
+
+grouped_shares <- variance_shares |>
+  mutate(group = factor(feature_groups[as.character(component)], levels = rev(names(group_colours)))) |>
+  summarise(share = sum(share), .by = c(feature, group)) |>
+  mutate(feature = reorder(feature, share * (group == "Writer"), sum)) # highest writer share on top
+
+grouped_shares |>
+  pivot_wider(names_from = group, values_from = share) |>
+  select(feature, all_of(names(group_colours))) |>
+  arrange(desc(Writer)) |>
+  mutate(across(-feature, \(x) round(100 * x, 1)))
+
+grouped_plot <- ggplot(grouped_shares, aes(share, feature, fill = group)) +
+  geom_col(width = 0.7, colour = "white", linewidth = 0.4) +
+  scale_x_continuous(labels = scales::label_percent(), expand = expansion(mult = c(0, 0.02))) +
+  scale_fill_manual(values = group_colours, breaks = names(group_colours)) +
+  labs(title = "Share of feature variance by source",
+       x = "Share of total sum of squares", y = NULL, fill = NULL) +
+  theme(legend.position = "top", panel.grid.major.y = element_blank())
+
+save_figure(grouped_plot, "feature_variance_grouped", figure_dir, width = 8, height = 4.5)
 
 
 # 5. PCA of raw pixels -------------------------------------------------------
@@ -278,7 +292,7 @@ pca_plot <- ggplot(pca_scores, aes(PC1, PC2)) +
        subtitle = "Grey: all writers. Coloured: this writer's images by session",
        colour = "Session")
 
-save_figure(pca_plot, "pca_by_writer", width = 11, height = 9)
+save_figure(pca_plot, "pca_by_writer", figure_dir, width = 11, height = 9)
 
 
 # 6. Checks for simulation artefacts and limitations ------------------------
@@ -296,7 +310,7 @@ intensity_plot <- tibble(value = as.vector(images)) |>
   scale_y_continuous(labels = scales::label_comma()) +
   labs(title = "Distribution of non-zero pixel intensities", x = "Pixel value", y = "Pixels")
 
-save_figure(intensity_plot, "pixel_intensities", width = 8, height = 4)
+save_figure(intensity_plot, "pixel_intensities", figure_dir, width = 8, height = 4)
 
 # Pixels that are never inked carry no information
 sum(colSums(pixels) == 0)
@@ -316,10 +330,10 @@ features |>
 features |> slice_min(ink_area, n = 5) |> select(image_id:replicate, ink_area, ink_total)
 
 
+# 7. Pixel-level variance decomposition --------------------------------------
 
-
-# Pixel-level sum-of-squares decomposition per digit:
-# between writers, between sessions within writer, between replicates within session
+# For each digit, split every image's squared distance to the digit mean into
+# between writers, between sessions within writer and between replicates within session
 pixel_variance <- function(d) {
   rows   <- meta$digit == d
   x      <- pixels[rows, ]
@@ -339,7 +353,28 @@ pixel_variance <- function(d) {
   tibble(digit = d, component = names(ss), share = ss / sum(ss))
 }
 
-map(0:4, pixel_variance) |>
-  list_rbind() |>
+pixel_shares <- map(0:4, pixel_variance) |> list_rbind()
+
+pixel_shares |>
   pivot_wider(names_from = component, values_from = share) |>
   mutate(across(-digit, \(s) round(100 * s, 1)))
+
+pixel_components <- c(writer            = "Between writers",
+                      session_in_writer = "Between sessions (same writer)",
+                      replicate         = "Between replicates (same session)")
+
+pixel_plot <- pixel_shares |>
+  mutate(component = factor(pixel_components[component], levels = rev(pixel_components))) |>
+  ggplot(aes(share, factor(digit), fill = component)) +
+  geom_col(width = 0.7, colour = "white", linewidth = 0.4) +
+  geom_text(aes(label = scales::percent(share, accuracy = 1)),
+            position = position_stack(vjust = 0.5), colour = "white", size = 3.5) +
+  scale_x_continuous(labels = scales::label_percent(), expand = expansion(mult = c(0, 0.02))) +
+  scale_y_discrete(limits = rev) +
+  scale_fill_manual(values = set_names(c("#2a78d6", "#eb6834", "grey65"), pixel_components),
+                    breaks = pixel_components) +
+  labs(title = "Where does the pixel variation within a digit come from?",
+       x = "Share of pixel variance", y = "Digit", fill = NULL) +
+  theme(legend.position = "top", panel.grid.major.y = element_blank())
+
+save_figure(pixel_plot, "pixel_variance_decomposition", figure_dir, width = 8, height = 4)
