@@ -365,7 +365,7 @@ pixel_components <- c(writer            = "Between writers",
                       session_in_writer = "Between sessions (same writer)",
                       replicate         = "Between replicates (same session)")
 
-pixel_plot <- pixel_shares %>%
+pixel_plot <- pixel_shares %>% 
   mutate(component = factor(pixel_components[component], levels = rev(pixel_components))) %>%
   ggplot(aes(share, factor(digit), fill = component)) +
   geom_col(width = 0.7, colour = "white", linewidth = 0.4) +
