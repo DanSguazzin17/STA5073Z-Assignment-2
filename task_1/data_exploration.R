@@ -380,3 +380,26 @@ pixel_plot <- pixel_shares %>%
   theme(legend.position = "top", panel.grid.major.y = element_blank())
 
 save_figure(pixel_plot, "pixel_variance_decomposition", figure_dir, width = 8, height = 4)
+
+
+
+
+# 8. Save results for the report ---------------------------------------------
+
+result_dir <- here::here("task_1", "results")
+dir.create(result_dir, recursive = TRUE, showWarnings = FALSE)
+
+saveRDS(
+  list(
+    variance_shares = variance_shares %>% select(feature, component, share),
+    grouped_shares  = grouped_shares,
+    pixel_shares    = pixel_shares,
+    pixel_values    = tibble(
+      share_background = mean(images == 0),
+      share_saturated  = mean(images == 255),
+      n_grey_levels    = length(unique(as.vector(images))),
+      n_duplicates     = sum(duplicated(pixels))
+    )
+  ),
+  file.path(result_dir, "exploration_results.rds")
+)
