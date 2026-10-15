@@ -1,32 +1,320 @@
 ---
-title: "STA5073Z Assignment 2: Writer Identification from Handwriting"
-author: "Group members' names and student numbers go here"
+title: "Writer Identification from Handwriting"
+subtitle: "STA5073Z Data Science for Industry: Assignment 2"
+bibliography: references.bib
 format:
   html:
+    title-block-style: none     # the cover page below replaces the default title block
     toc: true
+    toc-depth: 2
+    toc-title: "Contents"
+    number-sections: true
     embed-resources: true
+    code-fold: true
+    fig-cap-location: bottom
+    include-in-header:
+      text: |
+        <style>
+          #title-block-header { display: none; }
+          .cover { text-align: center; padding: 2.5rem 1rem 2rem; margin-bottom: 2rem;
+                   border-bottom: 2px solid #1f3a5f; page-break-after: always; }
+          .cover .uni   { font-size: 1.5rem; font-weight: 700; letter-spacing: .08em; }
+          .cover .dept  { font-size: 1.05rem; margin-bottom: 2rem; }
+          .cover .course{ font-size: 1.15rem; font-weight: 600; }
+          .cover .assn  { font-size: 1.05rem; margin-bottom: 1.5rem; }
+          .cover .title { font-size: 2rem; font-weight: 700; color: #1f3a5f; margin: 1.5rem 0 2rem; }
+          .cover table  { margin: 0 auto 1.5rem; width: auto; }
+          .cover td, .cover th { padding: .3rem 1rem; text-align: left; }
+          .cover .meta  { margin: 0 auto; }
+          .cover .meta td:first-child { font-weight: 600; text-align: right; }
+        </style>
 execute:
-  echo: true
+  echo: false
+  warning: false
+  message: false
 ---
 
-## Introduction
+<!--
+NOTES FOR THE GROUP (HTML comments: they don't render and don't count toward the word limit)
+- Word limit: 5000, excluding the AI use statement, appendices, figure captions and references.
+  Suggested budget per section is given in each section's note (~4,600 total).
+- Brief: the written text must be in our own words. LLMs only for proofreading and minor style.
+- Owners are marked per section. Change them if we swap.
+- The report only READS saved figures and results from task_*/results/, so rendering doesn't retrain models.
+- Lucas: fill in your student number and role in the cover table and the declarations.
+-->
 
-## Data exploration
+::: {.cover}
+[UNIVERSITY OF CAPE TOWN]{.uni}\
+[Department of Statistical Sciences]{.dept}
 
-## Train / validation / test strategy
+[STA5073Z Data Science for Industry]{.course}\
+[Assignment 2: Image classification with neural networks]{.assn}
 
-## CNN: writer identification
+[Writer Identification from Handwriting]{.title}
 
-## Siamese network: same-writer matching
+| Group member      | Student number | Main responsibilities                         |
+|:------------------|:---------------|:----------------------------------------------|
+| Daniele Sguazzin  | SGZDAN001      | Siamese network, hyperparameter search        |
+| Lucas Henze       | [STUDENT NO.]  | CNN for writer identification                 |
 
-## Hyperparameter sensitivity
+::: {.meta}
+|                     |                                                              |
+|--------------------:|:-------------------------------------------------------------|
+| Date                | 16 October 2026                                              |
+| Word count          | [XXXX] / 5000                                                |
+| GitHub repository   | <https://github.com/DanSguazzin17/STA5073Z-Assignment-2>      |
+| Report website      | [GitHub Pages link]                                          |
+:::
+:::
 
-## Comparing the two approaches
+```{r setup}
+library(here)
+library(knitr)
+```
 
-## Conclusion
+# Declarations {.unnumbered}
 
-## Plagiarism declaration
+## Plagiarism Declaration {.unnumbered}
 
-## AI use statement
+We declare that this submission is our own work. Where ideas, material or assistance from other sources have been used, these have been acknowledged and referenced.
 
-## References
+We understand that we are responsible for all material submitted, including material produced with the assistance of large language models. We have reviewed and checked the content of this submission and take responsibility for its accuracy and originality.
+
+We have not knowingly presented the work of another person as our own.
+
+| Name              | Student number | Signature          | Date            |
+|:------------------|:---------------|:-------------------|:----------------|
+| Daniele Sguazzin  | SGZDAN001      | D. Sguazzin        | 16 October 2026 |
+| Lucas Henze       | [STUDENT NO.]  | [SIGNATURE]        | 16 October 2026 |
+
+## AI Use Statement {.unnumbered}
+
+<!--
+Required by the brief FOR EACH TASK: (a) the tool used, (b) what it was used for (specific
+subtasks), (c) if and how its outputs were verified, (d) how much of what it produced was used.
+Not included in the word count. Fill in one row per task. The owner of each task fills that row.
+-->
+
+| Task | Tool(s) | What it was used for | How outputs were checked | Extent used |
+|:-----|:--------|:---------------------|:-------------------------|:------------|
+| 1. Data exploration | | | | |
+| 2. CNN for writer identification | | | | |
+| 3. Siamese network | | | | |
+| 4. Train/validation/test strategy | | | | |
+| 5. Hyperparameter optimisation | | | | |
+| 6. Comparing CNN and Siamese results | | | | |
+| 7. Git and GitHub collaboration | | | | |
+| 8. Written report | | | | |
+| 9. GitHub Pages website | | | | |
+
+: AI use by task. {#tbl-ai-use}
+
+# Introduction
+
+<!-- Owner: both | ~250 words
+- The data: 25,000 simulated 28x28 images; 20 writers x digits 0-4 x 5 sessions x 50 replicates.
+- The two questions: which of 20 writers wrote an image (CNN, closed set), and whether two images
+  were written by the same person (Siamese network, similarity).
+- Why this matters in practice (e.g. forensic or signature-style verification).
+- One sentence on how the report is organised.
+-->
+
+# Data Exploration
+
+<!-- Owner: [who did exploration] | ~550 words | Brief Task 1 -->
+
+## Dataset structure
+
+<!-- Confirm the balanced design: 1,250 images per writer; 5,000 per digit and per session. Counts table. -->
+
+## Variation between writers
+
+<!-- Same digit, different writers. Slant, stroke thickness, size, position? -->
+
+```{r}
+#| label: fig-writers
+#| fig-cap: "[Caption: examples of the same digit written by different writers.]"
+# include_graphics(here("task_1", "results", "FILENAME.png"))
+```
+
+## Variation across sessions
+
+<!-- Same writer and digit across sessions 1-5. How much does a writer drift between sessions? -->
+
+```{r}
+#| label: fig-sessions
+#| fig-cap: "[Caption: one writer's digit across the five recording sessions.]"
+# include_graphics(here("task_1", "results", "FILENAME.png"))
+```
+
+## Variation within a session
+
+<!-- Replicates from one writer/digit/session. Near-identical or varied? -->
+
+## Limitations of the simulated data
+
+<!-- No real pen/paper noise, possibly too regular, only 5 digits and 20 writers, simulator
+artefacts. What does this mean for generalising to real handwriting? -->
+
+# Train, Validation and Test Strategy {#sec-train-test}
+
+<!-- Owner: both | ~650 words | Brief Task 4
+Shared split (R/data.R, assign_session_split): train = sessions 1-3, validation = session 4,
+test = session 5. Tune on validation; retrain on sessions 1-4; evaluate once on session 5. -->
+
+## Chosen split
+
+## What kind of generalisation this represents
+
+<!-- A known writer in a new, unseen session. For the Siamese network, note the test pairs use the
+same 20 writers as training, so it doesn't test generalisation to new people. -->
+
+## Leakage and optimistic performance
+
+<!-- A random image split puts near-identical replicates from one session in both train and test.
+Compare with assign_random_split() results if available. Session 4 used for tuning, then folded
+into training: why this is acceptable (test untouched). -->
+
+# CNN for Writer Identification
+
+<!-- Owner: Lucas | ~850 words | Brief Task 2 (R/cnn.R, R/evaluation.R) -->
+
+## Model architecture and training
+
+<!-- Layers, loss, optimiser, epochs, early stopping. -->
+
+## Overall performance
+
+<!-- Test (session 5) accuracy. Confusion matrix: which writers get confused? -->
+
+```{r}
+#| label: tbl-cnn-overall
+#| tbl-cap: "[Caption: CNN writer identification performance on the test session.]"
+# cnn_results <- readRDS(here("task_2", "results", "FILENAME.rds"))
+```
+
+## Performance by digit
+
+```{r}
+#| label: fig-cnn-digit
+#| fig-cap: "[Caption: CNN test accuracy by digit.]"
+# include_graphics(here("task_2", "results", "FILENAME.png"))
+```
+
+## What the evaluation measures mean in practice
+
+<!-- e.g. "given one unseen sample from a known writer in a new session, we name the right person
+X% of the time". Aggregated accuracy over k samples (aggregated_accuracy()) if used. -->
+
+# Siamese Network for Same-Writer Matching
+
+<!-- Owner: Daniele | ~850 words | Brief Task 3 (task_3/siamese_network.R) -->
+
+## Architecture and contrastive loss
+
+A Siamese network asks a different question than the CNN. Instead of naming which of the 20 writers wrote an image, it looks at two images and decides if the same person wrote both. Both images pass through the same small convolutional network, called the encoder, using the same weights for each image, which is why the model is called "Siamese", or twin. The encoder works like this: a convolutional layer (16 filters) with max pooling, a second convolutional layer (32 filters) with max pooling, global average pooling, then a dense layer that outputs an *embedding*: a short list of numbers summing up the handwriting style of one image. The two embeddings are then compared using Euclidean distance, the model's only output. A small distance should mean "same writer", a large distance "different writer".
+
+The model is trained with contrastive loss [@hadsell2006]. For a same-writer pair, the loss punishes the model if the two embeddings are far apart. For a different-writer pair, it only punishes embeddings that are closer than a set margin: once two different writers' embeddings are far enough apart, there is no extra reward for pushing them further. The embedding size and margin are both hyperparameters. The final model uses an embedding size of 16 and a margin of 0.5, picked by the search described in @sec-hyperparameters.
+
+## Constructing training pairs
+
+Each training pair starts with one image, and a coin flip decides if the second image should come from the same writer or a different one, giving a roughly even 50/50 split. Both images in a pair always show the same digit. This matters: without it, the network could just learn to spot which digit is in each image instead of who wrote it, since digit shape is a much easier shortcut than handwriting style. Matching on digit forces the network to rely on style clues instead, such as slant and stroke thickness, which carry over even when the digit changes. An image is also never paired with itself.
+
+Pairs are only built within one data split, so no image appears in more than one of training, validation or test. The project uses one session split throughout: sessions 1-3 for training, session 4 for validation, and session 5 for test (see @sec-train-test). Using this split, 8,000 pairs were built for the hyperparameter search, 2,000 for validation, and 2,000 for test. Once the best hyperparameters were chosen using validation only, the final model was retrained on 10,000 fresh pairs drawn from sessions 1-4 combined, then tested once on the untouched test pairs.
+
+## From distance to a same-writer decision
+
+The model only outputs a distance, not a simple yes or no, so a threshold is needed to turn a distance like 0.21 into "same writer" or "different writer". Many candidate thresholds were tried on the validation pairs, and the one with the best *balanced accuracy* was kept: the average of how often same-writer pairs are correctly caught and how often different-writer pairs are correctly caught. Balanced accuracy was used instead of plain accuracy so the model cannot score well just by leaning toward one answer. The final threshold (0.156) was locked in using validation data only, then reused as is on the test pairs, so no test information affected the decision rule.
+
+## Matching performance
+
+The final Siamese network was tested on 2,000 held-out pairs from session 5, which it never saw during training or tuning. It reaches 98.2% balanced accuracy: it correctly spots same-writer pairs 98.9% of the time and different-writer pairs 97.4% of the time (@tbl-siamese-results). In simple terms, given two handwriting samples, the model correctly says whether they are from the same person about 98% of the time, in a session it has never seen before.
+
+```{r}
+#| label: tbl-siamese-results
+#| tbl-cap: "Siamese network balanced accuracy by data split, using the distance threshold locked in on the validation set (0.156)."
+library(tibble)
+library(knitr)
+
+tibble(
+  Split = c("Train (sessions 1-4)", "Validation (session 4)", "Test (session 5)"),
+  `Balanced accuracy` = c("77.4%", "98.0%", "98.2%")
+) |> kable(align = "lr")
+```
+
+@fig-siamese-distances shows why this works: distances for same-writer pairs cluster near zero, distances for different-writer pairs are spread out and mostly sit well above the threshold, and the overlap between the two groups is small.
+
+```{r}
+#| label: fig-siamese-distances
+#| fig-cap: "Distances between embeddings for same-writer and different-writer test pairs (session 5). The dashed line is the threshold (0.156) chosen on the validation set."
+include_graphics(here("task_3", "results", "test_distance_distribution.png"))
+```
+
+## Does test accuracy overstate cross-session performance?
+
+The train balanced accuracy (77.4%) is lower than both validation and test, which looks backwards at first. Splitting the result by pair type explains why, and it changes how the headline number should be read. On training pairs, same-writer detection is only 57.2%, far below different-writer detection at 97.6%; on test, the two numbers sit close together (98.9% versus 97.4%). The reason is session structure, not a weaker model. Test pairs come only from session 5, so same-writer test pairs are always two images from one sitting, where handwriting stays most consistent. Training same-writer pairs are different: they are drawn from sessions 1-4 and often pair two sittings from the same writer, and handwriting drifts a bit between sessions, making this a genuinely harder problem. The model has learned to spot a writer well within one sitting, but the test set never checks the harder, more realistic case of matching handwriting across different sittings. So the 98.2% test balanced accuracy is best read as a measure of within-session matching, not cross-session matching.
+
+## Quick exploration: matching across two unseen sessions
+
+As a quick extra check, the sessions-1-3-only model, never exposed to session 4 or 5, was tested a different way: on 2,000 pairs forced to pair one session 4 image with one session 5 image, rather than the normal within-session test pairs. Balanced accuracy drops sharply to 66.6%. Same-writer pairs are now only caught 36.7% of the time, while different-writer pairs are still caught 96.5% of the time. This confirms the pattern above directly: the headline test accuracy reported earlier reflects within-session matching, and genuinely cross-session matching is much harder for this model.
+
+# Hyperparameter Optimisation {#sec-hyperparameters}
+
+<!-- Owner: Daniele (Siamese) + Lucas (CNN) | Brief Task 5 (the brief only requires this search for one model; both were tuned in practice, so both are reported here) -->
+
+The brief only asks for a hyperparameter search on one of the two models. In practice both models were tuned, so both are reported here, each in its own short section below.
+
+## CNN hyperparameter search
+
+<!-- Owner: Lucas | which settings were tried, what changed and what didn't, and which setting was picked for the final model -->
+
+## Siamese network hyperparameter search
+
+The search varied one hyperparameter at a time around a baseline setting, keeping everything else fixed. Two things were varied: the embedding size (8, 16 or 32) and the margin used in the contrastive loss (0.5, 1 or 2). Each setting was trained on sessions 1-3 and scored on validation (session 4) balanced accuracy, since this choice has to stay separate from the untouched test set.
+
+@fig-siamese-hparams shows the result. All five settings land close together, between 96% and 98% balanced accuracy: baseline 97.0%, smaller embedding 97.1%, larger embedding 97.5%, smaller margin 98.0%, and larger margin 96.0%. The embedding size made almost no difference on its own, since 8, 16 and 32 all score within about half a point of each other. The margin mattered a bit more: the smaller margin (0.5) scored best and the larger margin (2) scored worst, a gap of about two points.
+
+Since the smaller margin setting scored highest on validation, it was chosen for the final model: embedding size 16 and margin 0.5, the same values used throughout the earlier results in this report. Because the differences between settings are small, this is not a strong win, but it is still the best option found, and the model does not seem to depend heavily on getting this exact choice right.
+
+```{r}
+#| label: fig-siamese-hparams
+#| fig-cap: "Validation balanced accuracy of the Siamese network for each hyperparameter setting."
+include_graphics(here("task_3", "results", "hyperparameter_sensitivity.png"))
+```
+
+# Comparing the CNN and Siamese Network
+
+<!-- Owner: both | ~750 words | Brief Task 6 -->
+
+## Comparing performance
+
+<!-- Metrics aren't directly comparable: 20-class accuracy (chance 5%) vs pairwise balanced
+accuracy (chance 50%). Practical trade-offs: retraining for new writers. -->
+
+## Which digits carry the most writer information
+
+<!-- CNN accuracy by digit vs Siamese balanced accuracy by digit. Do they agree? Why? -->
+
+## How session changes affect performance
+
+<!-- Sessions 1-3 vs 1-4 training comparison for both models. What this says about drift. -->
+
+# Collaboration and Reproducibility
+
+<!-- Owner: both | ~150 words | Brief Tasks 7 and 9
+Branches (cnn, siamese-network, data_exploration, dev), pull requests, shared R/ functions,
+CI workflow, renv, GitHub Pages published programmatically. -->
+
+# Conclusion
+
+<!-- Owner: both | ~250 words: main findings, key limitations, next steps. -->
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+# Appendix {.appendix .unnumbered}
+
+<!-- Optional. Not in the word count: extra figures, full hyperparameter tables, etc. -->
