@@ -292,3 +292,57 @@ distance_plot <- tibble(
 
 save_figure(distance_plot, "test_distance_distribution", here::here("task_3", "results"),
             width = 8, height = 4.5)
+
+
+# 10. Extra check: compare train vs. validation vs. test balanced accuracy -----
+# This is the direct evidence for whether the model is overfitting.
+# Overfitting would show up as train accuracy being MUCH higher than
+# validation/test accuracy (the model "memorised" training pairs instead of
+# learning general handwriting style). If all three numbers are similar,
+# that confirms the high accuracy is real, not memorisation.
+
+train_distance <- as.numeric(predict(final_model, list(final_pairs$left, final_pairs$right)))
+train_same     <- as.logical(final_pairs$y[, 1])
+predicted_same_train <- train_distance < threshold   # same locked-in threshold, not re-picked
+
+train_balanced_accuracy <- (mean(predicted_same_train[train_same]) +
+                               mean(!predicted_same_train[!train_same])) / 2
+
+accuracy_comparison <- tibble(
+  set                = c("Train (sessions 1-4)", "Validation (session 4, during search)", "Test (session 5)"),
+  balanced_accuracy  = c(train_balanced_accuracy, best_config$val_balanced_accuracy, test_balanced_accuracy)
+)
+
+accuracy_comparison   # all three should be close together -- that's the "not overfitting" evidence
+
+
+# 11. Does the extra session of training data actually help? ------------------
+# Same idea as what Lucas did for the CNN: train a version using ONLY sessions
+# 1-3 (same as the original hyperparameter search), and compare its test
+# performance against the final model (trained on sessions 1-4). This shows
+# how much that one extra recording session of training data is worth --
+# useful evidence for Task 6 ("how session changes affect performance").
+
+sessions_1_3_model <- build_siamese(
+  embedding_dim = best_config$embedding_dim,
+  margin        = best_config$margin
+)
+
+sessions_1_3_model |> fit(
+  list(train_pairs$left, train_pairs$right), train_pairs$y,   # train_pairs = sessions 1-3 only
+  epochs     = 10,
+  batch_size = 64
+)
+
+sessions_1_3_distance <- as.numeric(predict(sessions_1_3_model, list(test_pairs$left, test_pairs$right)))
+predicted_same_1_3    <- sessions_1_3_distance < threshold    # same locked-in threshold throughout
+
+sessions_1_3_balanced_accuracy <- (mean(predicted_same_1_3[test_same]) +
+                                      mean(!predicted_same_1_3[!test_same])) / 2
+
+training_data_comparison <- tibble(
+  training_data      = c("Sessions 1-3 only", "Sessions 1-4 (final model)"),
+  test_balanced_accuracy = c(sessions_1_3_balanced_accuracy, test_balanced_accuracy)
+)
+
+training_data_comparison   # a bigger gap here means the extra session of data mattered more
