@@ -1,9 +1,6 @@
-# Task 2 (diagnostic): learning curves at two learning rates
-# With the default learning rate the minimum of the validation loss falls inside
-# the first epoch, so only the overfitting phase is visible. A ten times smaller
-# learning rate stretches the start of training over several epochs and should
-# reveal the classic pattern (validation loss falls, then rises).
-# Baseline architecture, no early stopping, so the full curves are recorded.
+# Task 2: learning curves at two learning rates
+# With lr = 1e-3 the validation loss is lowest after 1-2 epochs, so we also try
+# lr = 1e-4 to see the full curve. No early stopping here.
 
 here::i_am("task_2/learning_curves.R")
 source(here::here("R", "setup.R"))
@@ -38,16 +35,16 @@ curves <- map(learning_rates, \(lr) {
   model   <- build_cnn(learning_rate = lr)
   history <- fit_cnn(model, train, val, epochs = epochs, patience = epochs, verbose = 0)
 
-  as.data.frame(history) |>
-    filter(metric %in% c("loss", "accuracy")) |>
+  as.data.frame(history) %>%
+    filter(metric %in% c("loss", "accuracy")) %>%
     mutate(learning_rate = paste("Learning rate", format(lr, scientific = FALSE)))
-}) |>
-  list_rbind() |>
-  mutate(learning_rate = factor(learning_rate, levels = unique(learning_rate))) # default rate first
+}) %>%
+  list_rbind() %>%
+  mutate(learning_rate = factor(learning_rate, levels = unique(learning_rate))) # keep lr = 1e-3 first
 
-# Epoch with the lowest validation loss and the highest validation accuracy
-curves |>
-  filter(data == "validation") |>
+# best epochs on the validation session
+curves %>%
+  filter(data == "validation") %>%
   summarise(
     best_epoch = if_else(first(metric) == "loss", epoch[which.min(value)], epoch[which.max(value)]),
     best_value = if_else(first(metric) == "loss", min(value), max(value)),
@@ -57,12 +54,12 @@ curves |>
 
 # 3. Plot --------------------------------------------------------------------
 
-minimum_val_loss <- curves |>
-  filter(data == "validation", metric == "loss") |>
+minimum_val_loss <- curves %>%
+  filter(data == "validation", metric == "loss") %>%
   slice_min(value, n = 1, by = learning_rate)
 
 curve_plot <- ggplot(curves, aes(epoch, value, colour = data)) +
-  geom_vline(data = minimum_val_loss |> select(learning_rate, epoch),
+  geom_vline(data = minimum_val_loss %>% select(learning_rate, epoch),
              aes(xintercept = epoch), linetype = "dashed", colour = "grey50") +
   geom_line(linewidth = 0.8) +
   geom_point(size = 1.2) +

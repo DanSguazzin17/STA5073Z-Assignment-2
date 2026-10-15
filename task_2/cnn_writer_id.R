@@ -1,9 +1,6 @@
-# Task 2: CNN for writer identification
-# Predict the writer (20 classes) from a single image. Main evaluation uses the
-# session split (train 1-3, validate 4, test 5), i.e. recognising a known writer
-# in a new recording session. A random image-level split is fitted for comparison.
-#
-# One-time setup per machine: renv::restore() and keras3::install_keras() (see README)
+# Task 2: CNN for writer identification (baseline)
+# Session split: train 1-3, validate 4, test 5. Random image split for comparison.
+# Setup once per machine: renv::restore() and keras3::install_keras()
 
 here::i_am("task_2/cnn_writer_id.R")
 source(here::here("R", "setup.R"))
@@ -22,8 +19,8 @@ seed <- 5073
 data  <- load_handwriting()
 split <- assign_session_split(data$meta)
 
-split |> count(set, session)
-split |> count(set, person_id) |> count(set, n, name = "writers") # every writer in every set
+split %>% count(set, session)
+split %>% count(set, person_id) %>% count(set, n, name = "writers") # all writers in every set
 
 train <- get_set(data, split, "train")
 val   <- get_set(data, split, "val")
@@ -38,8 +35,8 @@ model
 
 history <- fit_cnn(model, train, val)
 
-history_plot <- as.data.frame(history) |>
-  filter(metric %in% c("loss", "accuracy"), !is.na(value)) |> # epochs after early stopping are NA
+history_plot <- as.data.frame(history) %>%
+  filter(metric %in% c("loss", "accuracy"), !is.na(value)) %>% # NA after early stopping
   ggplot(aes(epoch, value, colour = data)) +
   geom_line(linewidth = 0.8) +
   geom_point(size = 1.5) +
@@ -56,11 +53,11 @@ save_figure(history_plot, "training_history", figure_dir, width = 9, height = 4)
 
 predictions <- predict_writer(model, test)
 
-# Overall: chance level is 1/20 = 5%
+# chance level is 5%
 overall <- accuracy_by(predictions)
 overall
 
-# By digit: which digits carry more writer information?
+# by digit
 by_digit <- accuracy_by(predictions, digit)
 by_digit
 
@@ -75,11 +72,11 @@ digit_plot <- ggplot(by_digit, aes(factor(digit), accuracy)) +
 
 save_figure(digit_plot, "accuracy_by_digit", figure_dir, width = 6, height = 4)
 
-# By writer: are some writers systematically harder to recognise in a new session?
-by_writer <- accuracy_by(predictions, person_id) |> arrange(accuracy)
+# by writer
+by_writer <- accuracy_by(predictions, person_id) %>% arrange(accuracy)
 by_writer
 
-confusion_plot <- confusion_table(predictions) |>
+confusion_plot <- confusion_table(predictions) %>%
   ggplot(aes(factor(predicted), factor(person_id), fill = share)) +
   geom_tile(colour = "white", linewidth = 0.3) +
   scale_fill_gradient(low = "#f4f7fb", high = "#184f95", labels = scales::label_percent()) +
@@ -91,7 +88,7 @@ confusion_plot <- confusion_table(predictions) |>
 
 save_figure(confusion_plot, "confusion_matrix", figure_dir, width = 7, height = 7)
 
-# Several images per writer: how fast does identification improve with more evidence?
+# combining several images of the same writer
 by_n_images <- aggregated_accuracy(predictions)
 by_n_images
 
@@ -109,8 +106,7 @@ save_figure(aggregation_plot, "accuracy_by_n_images", figure_dir, width = 6, hei
 
 # 4. Comparison: random image-level split -----------------------------------
 
-# Same architecture and settings; only the split differs. The gap to the session
-# split quantifies how optimistic a naive split would be (input for Task 4).
+# same model, only the split differs
 random_split <- assign_random_split(data$meta, seed = seed)
 
 set_random_seed(seed)
@@ -125,9 +121,9 @@ split_comparison <- bind_rows(
   session = accuracy_by(predictions, digit),
   random  = accuracy_by(predictions_random, digit),
   .id = "split"
-) |>
-  select(split, digit, accuracy) |>
-  pivot_wider(names_from = split, values_from = accuracy) |>
+) %>%
+  select(split, digit, accuracy) %>%
+  pivot_wider(names_from = split, values_from = accuracy) %>%
   mutate(gap = random - session)
 
 split_comparison
