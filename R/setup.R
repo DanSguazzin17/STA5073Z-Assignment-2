@@ -10,6 +10,8 @@ suppressPackageStartupMessages({
   library(keras3)
 })
 
+reticulate::py_require(python_version = "3.12")
+
 list.files(here::here("R"), pattern = "\\.R$", full.names = TRUE) |>
   keep(\(file) basename(file) != "setup.R") |>
   walk(source)
