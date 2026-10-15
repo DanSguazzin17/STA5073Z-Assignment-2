@@ -26,6 +26,7 @@
 source(here::here("R", "setup.R"))   # loads packages + shared functions (data.R, plotting.R, ...)
 
 set.seed(5073)
+keras3::set_random_seed(5073)   # seeds TensorFlow/Keras weight init + shuffling too, so reruns are reproducible
 
 
 # 1. Load data and apply the shared session split ----------------------------
@@ -346,3 +347,48 @@ training_data_comparison <- tibble(
 )
 
 training_data_comparison   # a bigger gap here means the extra session of data mattered more
+
+
+# 12. Quick exploration: forced cross-session matching (sessions 4 vs. 5) -------
+# Everything above is unchanged. This is a small, additional check: how well
+# does the model match handwriting across two sessions it has genuinely
+# never seen, rather than relying on the (easier) within-session pairs that
+# make up the normal test set? Same-writer pairs are forced to have one
+# image from session 4 and one from session 5. Evaluated with
+# sessions_1_3_model (trained only on sessions 1-3, so both session 4 and
+# session 5 are unseen to it) and the same locked-in threshold used
+# throughout. This is a quick exploratory check, not a full re-run of the
+# pipeline -- kept separate from the main results above.
+
+make_cross_session_pairs <- function(n, meta) {
+  session4_ids <- which(meta$session == 4)
+  session5_ids <- which(meta$session == 5)
+
+  a <- sample(session4_ids, n, replace = TRUE)
+  b <- vapply(a, function(i) {
+    same_writer <- runif(1) < 0.5
+    pool <- session5_ids[meta$digit[session5_ids] == meta$digit[i]]
+    pool <- if (same_writer) {
+      pool[meta$person_id[pool] == meta$person_id[i]]
+    } else {
+      pool[meta$person_id[pool] != meta$person_id[i]]
+    }
+    sample(pool, 1)
+  }, integer(1))
+
+  cbind(a, b)
+}
+
+cross_session_pairs <- make_batch(make_cross_session_pairs(2000, split), data$x, split)
+
+cross_session_distance <- as.numeric(predict(sessions_1_3_model, list(cross_session_pairs$left, cross_session_pairs$right)))
+cross_session_same     <- as.logical(cross_session_pairs$y[, 1])
+predicted_same_cross   <- cross_session_distance < threshold
+
+cross_session_same_rate      <- mean(predicted_same_cross[cross_session_same])
+cross_session_different_rate <- mean(!predicted_same_cross[!cross_session_same])
+cross_session_balanced_accuracy <- (cross_session_same_rate + cross_session_different_rate) / 2
+
+cross_session_balanced_accuracy
+cross_session_same_rate
+cross_session_different_rate
