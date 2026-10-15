@@ -1,6 +1,5 @@
-# Loads packages and shared functions for all task scripts.
-# Packages are installed once per machine via renv::restore() and, for the
-# Python backend of keras3, keras3::install_keras() (see README).
+# Loads packages and the shared functions in R/
+# Install once per machine: renv::restore() and keras3::install_keras()
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -12,8 +11,8 @@ suppressPackageStartupMessages({
 
 reticulate::py_require(python_version = "3.12")
 
-list.files(here::here("R"), pattern = "\\.R$", full.names = TRUE) |>
-  keep(\(file) basename(file) != "setup.R") |>
+list.files(here::here("R"), pattern = "\\.R$", full.names = TRUE) %>%
+  keep(\(file) basename(file) != "setup.R") %>%
   walk(source)
 
-theme_set(theme_assignment())
+theme_set(theme_assignment())

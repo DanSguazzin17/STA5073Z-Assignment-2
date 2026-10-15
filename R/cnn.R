@@ -1,5 +1,4 @@
-# CNN for writer identification. Hyperparameters are arguments so that Task 5
-# can vary them without touching the architecture code.
+# CNN for writer identification (hyperparameters as arguments for tuning in Task 5)
 
 build_cnn <- function(filters       = c(16, 32, 64),
                       dense_units   = 64,
@@ -12,29 +11,29 @@ build_cnn <- function(filters       = c(16, 32, 64),
   inputs <- keras_input(shape = input_shape)
   x <- inputs
   
-  # Random shifts are only applied during training, never at prediction time
+  # random shifts are only used during training
   if (augment) {
-    x <- x |> layer_random_translation(
+    x <- x %>% layer_random_translation(
       height_factor = shift, width_factor = shift, fill_mode = "constant"
     )
   }
   
-  # Each block halves the resolution (28 -> 14 -> 7 -> 3) and learns more filters
+  # each block halves the resolution: 28 -> 14 -> 7 -> 3
   for (n_filters in filters) {
-    x <- x |>
-      layer_conv_2d(n_filters, kernel_size = 3, padding = "same", activation = "relu") |>
+    x <- x %>%
+      layer_conv_2d(n_filters, kernel_size = 3, padding = "same", activation = "relu") %>%
       layer_max_pooling_2d(pool_size = 2)
   }
   
-  outputs <- x |>
-    layer_flatten() |>
-    layer_dense(dense_units, activation = "relu") |>
-    layer_dropout(dropout) |>
+  outputs <- x %>%
+    layer_flatten() %>%
+    layer_dense(dense_units, activation = "relu") %>%
+    layer_dropout(dropout) %>%
     layer_dense(n_classes, activation = "softmax")
   
   model <- keras_model(inputs, outputs)
   
-  model |> compile(
+  model %>% compile(
     optimizer = optimizer_adam(learning_rate),
     loss      = "sparse_categorical_crossentropy",
     metrics   = list(
@@ -46,13 +45,11 @@ build_cnn <- function(filters       = c(16, 32, 64),
   model
 }
 
-# Early stopping on the validation session keeps the weights of the best epoch.
-# Validation accuracy is monitored rather than validation loss: on a new session
-# the loss rises through over-confident wrong predictions while accuracy still
-# improves. Keras models are modified in place, so `model` is trained afterwards.
+# Early stopping on validation accuracy (val loss rises too early on a new session),
+# keeps the weights of the best epoch. The model is trained in place.
 fit_cnn <- function(model, train, val, epochs = 50, batch_size = 64, patience = 5,
                     monitor = "val_accuracy", verbose = 2) {
-  model |> fit(
+  model %>% fit(
     x               = train$x,
     y               = train$y,
     validation_data = list(val$x, val$y),
@@ -65,14 +62,13 @@ fit_cnn <- function(model, train, val, epochs = 50, batch_size = 64, patience = 
   )
 }
 
-# Final model: retrain on training + validation sessions for a fixed number of
-# epochs (chosen beforehand with early stopping), as no validation set is left
+# Final model: fixed number of epochs, as no validation session is left
 fit_cnn_final <- function(model, train, epochs, batch_size = 64, verbose = 2) {
-  model |> fit(
+  model %>% fit(
     x          = train$x,
     y          = train$y,
     epochs     = epochs,
     batch_size = batch_size,
     verbose    = verbose
   )
-}
+}
