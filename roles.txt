@@ -1,13 +1,32 @@
-STA5073Z Assignment 2 — Group members and roles
-=================================================
+STA5073Z Assignment 2 - Group members and roles
+================================================
 
-(a) Group members and roles:
-- Daniele Sguazzin — [role / what you did, fill in as you go]
-- [Member 2 name] — [role]
-- [Member 3 name] — [role]
+(a) Group members and roles
 
-(b) GitHub Pages website link:
-[fill in after Step 11 — "quarto publish gh-pages"]
+Daniele Sguazzin (SGZDAN001)
+- Set up and owns the GitHub repository
+- Task 3: Siamese network for same-writer matching (task_3/siamese_network.R),
+  including pair construction, contrastive loss, threshold selection and the
+  cross-session check
+- Task 5: hyperparameter search for the Siamese network
+- Report: report template and cover page, Siamese network sections, hyperparameter search, results comaprions, collaboration and conclusions. 
 
-(c) GitHub repository link:
+Lucas Henze (HNZLUC002)
+- Task 1: data exploration (task_1/data_exploration.R)
+- Task 2: CNN for writer identification (task_2/)
+- Task 4: session-based train/validation/test split and comparison with a
+  random split (R/data.R, task_2/cnn_writer_id.R)
+- Task 5: hyperparameter tuning of the CNN (task_5/cnn_tuning.R)
+- Shared functions in R/ and the CI workflow (.github/workflows/)
+- Report: introduction, data exploration, split strategy, CNN and CNN tuning sections
+
+Both
+- Task 6: comparison of the CNN and the Siamese network, conclusion
+- Task 7: collaboration via branches and pull requests into dev
+- Presentation
+
+(b) GitHub Pages website
+[fill in after publishing, e.g. https://dansguazzin17.github.io/STA5073Z-Assignment-2/]
+
+(c) GitHub repository
 https://github.com/DanSguazzin17/STA5073Z-Assignment-2
