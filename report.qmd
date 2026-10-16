@@ -54,7 +54,6 @@ execute:
 |                     |                                                              |
 |--------------------:|:-------------------------------------------------------------|
 | Date                | 16 October 2026                                              |
-| Word count          | [XXXX] / 5000                                                |
 | GitHub repository   | <https://github.com/DanSguazzin17/STA5073Z-Assignment-2>      |
 | Report website      | <https://dansguazzin17.github.io/STA5073Z-Assignment-2/>                        |
 :::
