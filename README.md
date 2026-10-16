@@ -14,7 +14,7 @@ sessions × 50 replicates) to answer two questions:
 | Siamese network | Pairs within session 5 | 98.2% balanced accuracy |
 | Siamese network | Pairs across sessions 4 and 5 | 66.6% balanced accuracy |
 
-The full write-up is in [`report.qmd`](report.qmd), and also hosted as a live website at [GitHub Pages link] (add once published). Group members and roles are in [`roles.txt`](roles.txt).
+The full write-up is in [`report.qmd`](report.qmd), and also hosted as a live website at [https://dansguazzin17.github.io/STA5073Z-Assignment-2/](https://dansguazzin17.github.io/STA5073Z-Assignment-2/). Group members and roles are in [`roles.txt`](roles.txt).
 
 ---
 
