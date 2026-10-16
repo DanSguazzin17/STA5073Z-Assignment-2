@@ -392,3 +392,27 @@ cross_session_balanced_accuracy <- (cross_session_same_rate + cross_session_diff
 cross_session_balanced_accuracy
 cross_session_same_rate
 cross_session_different_rate
+
+
+# 13. Quick exploration: balanced accuracy broken down by digit -------------
+# For comparison against the CNN's per-digit breakdown in @sec-cnn: does any
+# digit carry more writer information for the Siamese network either?
+# Builds a fresh set of same-digit test pairs for each digit separately
+# (ids restricted to one digit within the test session, session 5), then
+# evaluates with the already-trained final_model and the same locked-in
+# threshold used throughout. This is a quick exploratory check using new
+# pairs, not a breakdown of the original test_pairs -- kept separate from
+# the main results above, nothing above this is affected.
+
+digit_balanced_accuracy <- function(d, n = 400) {
+  ids_d    <- test_rows[split$digit[test_rows] == d]
+  pairs_d  <- make_batch(make_pairs(ids_d, n, split), data$x, split)
+  dist_d   <- as.numeric(predict(final_model, list(pairs_d$left, pairs_d$right)))
+  same_d   <- as.logical(pairs_d$y[, 1])
+  pred_d   <- dist_d < threshold
+  (mean(pred_d[same_d]) + mean(!pred_d[!same_d])) / 2
+}
+
+siamese_digit_accuracy <- sapply(sort(unique(split$digit)), digit_balanced_accuracy)
+names(siamese_digit_accuracy) <- sort(unique(split$digit))
+siamese_digit_accuracy
