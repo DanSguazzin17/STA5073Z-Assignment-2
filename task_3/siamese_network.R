@@ -3,13 +3,7 @@
 # Task 5: limited hyperparameter search for the Siamese network
 #
 # Goal: given two handwriting images, predict whether the SAME person wrote
-# both of them. Unlike the CNN (task_2), this doesn't classify "which of the
-# 20 writers" -- it learns a general notion of handwriting similarity, which
-# in principle works even for a writer the model never trained on.
-#
-# This follows the worked example in:
-#   "10 Object Detection and Metric Learning/Metric Learning with Siamese
-#   Networks.qmd" -- read that alongside this script.
+# both of them.
 #
 # Overall plan (matches the plan agreed with Lucas for both models):
 #   1. Train on sessions 1-3, tune/check overfitting on session 4 (validation).
@@ -26,7 +20,7 @@
 source(here::here("R", "setup.R"))   # loads packages + shared functions (data.R, plotting.R, ...)
 
 set.seed(5073)
-keras3::set_random_seed(5073)   # seeds TensorFlow/Keras weight init + shuffling too, so reruns are reproducible
+keras3::set_random_seed(5073)   # seeds TensorFlow/Keras so reruns are reproducible
 
 
 # 1. Load data and apply the shared session split ----------------------------
@@ -46,10 +40,6 @@ final_train_rows <- which(split$session != 5)       # sessions 1-4 combined, use
 
 
 # 2. Build same/different-writer pairs, controlling for digit ----------------
-# The brief asks us to think about whether pair construction should control
-# for digit identity. We do: a pair's two images are ALWAYS the same digit,
-# so the network can't take the shortcut of learning "these look like the
-# same digit" as a stand-in for "these were written by the same person."
 #
 # `ids` restricts which rows of the metadata we're allowed to draw from
 # (e.g. only training rows), so we never mix images across train/val/test.
@@ -82,8 +72,6 @@ make_batch <- function(pairs, images, meta) {
   )
 }
 
-# How many pairs: kept modest so this trains quickly on a laptop CPU,
-# matching the brief's "models trained in under a minute" guidance.
 train_pairs <- make_batch(make_pairs(train_rows, 8000, split), data$x, split)
 val_pairs   <- make_batch(make_pairs(val_rows,   2000, split), data$x, split)
 test_pairs  <- make_batch(make_pairs(test_rows,  2000, split), data$x, split)
@@ -92,10 +80,6 @@ mean(train_pairs$y)   # sanity check: should be close to 0.5 (balanced same/diff
 
 
 # 3. Build the Siamese model as a FUNCTION ------------------------------------
-# Same idea as Lucas's build_cnn(): every hyperparameter we might want to
-# vary (embedding size, margin) is a function argument with a sensible
-# default, instead of being hard-coded. That's what makes step 5 (the
-# hyperparameter search) possible without rewriting the model each time.
 
 build_siamese <- function(embedding_dim = 16,
                            margin        = 1,
@@ -145,9 +129,6 @@ build_siamese <- function(embedding_dim = 16,
 # 4. Helper: pick the best distance threshold using VALIDATION pairs ---------
 # The model only outputs a distance, not a yes/no answer. We try a range of
 # candidate thresholds and keep whichever gives the best "balanced accuracy"
-# -- averaging how often we correctly spot same-writer pairs and how often
-# we correctly spot different-writer pairs, so a model can't win just by
-# always guessing "different."
 
 best_threshold <- function(distance, same) {
   candidates <- sort(unique(distance))
@@ -162,9 +143,6 @@ best_threshold <- function(distance, same) {
 
 
 # 5. Train ONE candidate model and score it on validation ---------------------
-# Used by the hyperparameter search below: build a model with the given
-# settings, train it on sessions 1-3, then score it on session 4 only.
-# Test pairs are never touched here.
 
 train_one_config <- function(embedding_dim, margin, epochs = 10, batch_size = 64) {
   model <- build_siamese(embedding_dim = embedding_dim, margin = margin)
@@ -213,7 +191,7 @@ search_results <- candidate_configs |>
 
 search_results   # one row per candidate -- compare val_balanced_accuracy across them
 
-# A quick plot showing how sensitive results are to each setting (for the report)
+# A quick plot showing how sensitive results are to each setting
 sensitivity_plot <- search_results |>
   ggplot(aes(x = label, y = val_balanced_accuracy)) +
   geom_col() +
@@ -254,9 +232,6 @@ plot(final_history)
 
 
 # 8. Evaluate the final model ONCE on the TEST pairs ---------------------------
-# Important: we do NOT re-pick the threshold here -- that would be cheating
-# (using test information to make a decision). We only USE the threshold
-# chosen back in step 6.
 
 threshold <- best_config$threshold
 
@@ -275,8 +250,7 @@ test_different_rate
 
 # 9. Save a results plot --------------------------------------------------------
 # Distance distributions for same vs. different pairs, with the chosen
-# threshold marked -- a good "does this even make sense" sanity check, and
-# useful evidence for the report.
+# threshold marked
 
 distance_plot <- tibble(
   distance = test_distance,
@@ -299,8 +273,7 @@ save_figure(distance_plot, "test_distance_distribution", here::here("task_3", "r
 # This is the direct evidence for whether the model is overfitting.
 # Overfitting would show up as train accuracy being MUCH higher than
 # validation/test accuracy (the model "memorised" training pairs instead of
-# learning general handwriting style). If all three numbers are similar,
-# that confirms the high accuracy is real, not memorisation.
+# learning general handwriting style).
 
 train_distance <- as.numeric(predict(final_model, list(final_pairs$left, final_pairs$right)))
 train_same     <- as.logical(final_pairs$y[, 1])
@@ -318,11 +291,6 @@ accuracy_comparison   # all three should be close together -- that's the "not ov
 
 
 # 11. Does the extra session of training data actually help? ------------------
-# Same idea as what Lucas did for the CNN: train a version using ONLY sessions
-# 1-3 (same as the original hyperparameter search), and compare its test
-# performance against the final model (trained on sessions 1-4). This shows
-# how much that one extra recording session of training data is worth --
-# useful evidence for Task 6 ("how session changes affect performance").
 
 sessions_1_3_model <- build_siamese(
   embedding_dim = best_config$embedding_dim,
@@ -350,15 +318,13 @@ training_data_comparison   # a bigger gap here means the extra session of data m
 
 
 # 12. Quick exploration: forced cross-session matching (sessions 4 vs. 5) -------
-# Everything above is unchanged. This is a small, additional check: how well
-# does the model match handwriting across two sessions it has genuinely
+# How well does the model match handwriting across two sessions it has genuinely
 # never seen, rather than relying on the (easier) within-session pairs that
 # make up the normal test set? Same-writer pairs are forced to have one
 # image from session 4 and one from session 5. Evaluated with
 # sessions_1_3_model (trained only on sessions 1-3, so both session 4 and
 # session 5 are unseen to it) and the same locked-in threshold used
-# throughout. This is a quick exploratory check, not a full re-run of the
-# pipeline -- kept separate from the main results above.
+# throughout.
 
 make_cross_session_pairs <- function(n, meta) {
   session4_ids <- which(meta$session == 4)
@@ -395,14 +361,12 @@ cross_session_different_rate
 
 
 # 13. Quick exploration: balanced accuracy broken down by digit -------------
-# For comparison against the CNN's per-digit breakdown in @sec-cnn: does any
-# digit carry more writer information for the Siamese network either?
+# Does any digit carry more writer information for the Siamese network either?
 # Builds a fresh set of same-digit test pairs for each digit separately
 # (ids restricted to one digit within the test session, session 5), then
 # evaluates with the already-trained final_model and the same locked-in
 # threshold used throughout. This is a quick exploratory check using new
-# pairs, not a breakdown of the original test_pairs -- kept separate from
-# the main results above, nothing above this is affected.
+# pairs, not a breakdown of the original test_pairs. 
 
 digit_balanced_accuracy <- function(d, n = 400) {
   ids_d    <- test_rows[split$digit[test_rows] == d]
