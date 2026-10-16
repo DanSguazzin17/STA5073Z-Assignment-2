@@ -47,7 +47,7 @@ execute:
 
 | Group member      | Student number | Main responsibilities                         |
 |:------------------|:---------------|:----------------------------------------------|
-| Daniele Sguazzin  | SGZDAN001      | Siamese network, hyperparameter search        |
+| Daniele Sguazzin  | SGZDAN001      | Siamese network, Hyperparameter search, Results Comparison        |
 | Lucas Henze       | HNZLUC002      | Data exploration, CNN, CNN hyperparameter search |
 
 ::: {.meta}
@@ -172,7 +172,7 @@ We have not knowingly presented the work of another person as our own.
 | Name              | Student number | Signature          | Date            |
 |:------------------|:---------------|:-------------------|:----------------|
 | Daniele Sguazzin  | SGZDAN001      | D. Sguazzin        | 16 October 2026 |
-| Lucas Henze       | HNZLUC002      | [SIGNATURE]        | 16 October 2026 |
+| Lucas Henze       | HNZLUC002      | L.Henze.           | 16 October 2026 |
 
 ## AI Use Statement {.unnumbered}
 
@@ -186,13 +186,12 @@ Not included in the word count. Fill in one row per task. The owner of each task
 |:-----|:--------|:---------------------|:-------------------------|:------------|
 | 1. Data exploration | | | | |
 | 2. CNN for writer identification | | | | |
-| 3. Siamese network | | | | |
+| 3. Siamese network | Claude (Anthropic AI assistant) | Used to debug code, including finding a missing random seed that was causing results to change between runs, and fixing bugs in extra pair-checking code. Also used to add comments to sections of the code to improve readability, and to help the written section flow better and read more clearly in simple language. | Numbers checked against real R console output before being used in the report. Reworded text checked against the original content to confirm the meaning and numbers stayed the same. | Used for debugging support, code comments, and wording improvements only. |
 | 4. Train/validation/test strategy | | | | |
-| 5. Hyperparameter optimisation | | | | |
-| 6. Comparing CNN and Siamese results | | | | |
-| 7. Git and GitHub collaboration | | | | |
-| 8. Written report | | | | |
-| 9. GitHub Pages website | | | | |
+| 5. Hyperparameter optimisation | Claude (Anthropic AI assistant) | Used to help the hyperparameter search write-up flow better and read more clearly in simple language. | Numbers checked against the tuning script output. Reworded text checked against the original content. | Used for wording improvements only. |
+| 6. Comparing CNN and Siamese results | Claude (Anthropic AI assistant) | Used to debug the code for a new per-digit check, and to help the comparison write-up flow better and read more clearly in simple language. | CNN numbers taken from existing, already-checked report variables. New per-digit Siamese numbers checked against script output. Reworded text checked against the original content. | Used for debugging support and wording improvements only. |
+| 7. Git and GitHub collaboration | Claude (Anthropic AI assistant) | Used for guidance on git and GitHub issues, such as fixing a pull request opened against the wrong base branch. | All git commands and GitHub actions performed and checked manually, not by the AI. | Guidance only. |
+| 8. Written report | Claude (Anthropic AI assistant) | Used to help sections flow better and read in simpler, plainer language, and to help with formatting of the report, such as turning prose-heavy number lists into tables. | Each reworded paragraph and table checked against the original content and underlying script output to confirm nothing changed in meaning or numbers. | Used for wording and formatting improvements only. |
 
 : AI use by task. {#tbl-ai-use}
 
@@ -329,23 +328,57 @@ Accuracy is the probability that a single digit is assigned to the right person.
 
 ## Architecture and contrastive loss
 
-A Siamese network asks a different question than the CNN. Instead of naming which of the 20 writers wrote an image, it looks at two images and decides if the same person wrote both. Both images pass through the same small convolutional network, called the encoder, using the same weights for each image, which is why the model is called "Siamese", or twin. The encoder works like this: a convolutional layer (16 filters) with max pooling, a second convolutional layer (32 filters) with max pooling, global average pooling, then a dense layer that outputs an *embedding*: a short list of numbers summing up the handwriting style of one image. The two embeddings are then compared using Euclidean distance, the model's only output. A small distance should mean "same writer", a large distance "different writer".
+A Siamese network asks a different question than the CNN. Instead of naming which of the 20 writers wrote an image, it looks at two images and decides if the same person wrote both. Both images pass through the same small convolutional network, called the encoder, using the same weights for each image, which is why the model is called "Siamese", or twin (@tbl-siamese-architecture). The encoder works like this: a convolutional layer (16 filters) with max pooling, a second convolutional layer (32 filters), then global average pooling, then a dense layer that outputs an *embedding*: a short list of numbers summing up the handwriting style of one image. The two embeddings are then compared using Euclidean distance, the model's only output. A small distance should mean "same writer", a large distance "different writer".
 
-The model is trained with contrastive loss [@hadsell2006]. For a same-writer pair, the loss punishes the model if the two embeddings are far apart. For a different-writer pair, it only punishes embeddings that are closer than a set margin: once two different writers' embeddings are far enough apart, there is no extra reward for pushing them further. The embedding size and margin are both hyperparameters. The final model uses an embedding size of 16 and a margin of 0.5, picked by the search described in @sec-hyperparameters.
+```{r}
+#| label: tbl-siamese-architecture
+#| tbl-cap: "Siamese network encoder architecture, applied identically to both images in a pair, so parameters are shared rather than doubled. Output shape as height × width × channels, or units for the embedding."
+
+siamese_architecture <- tribble(
+  ~Layer,                              ~Output,          ~Parameters,
+  "Input",                             "28 × 28 × 1",    0,
+  "Conv 3 × 3, 16 filters + max pool", "13 × 13 × 16",   conv_params(1, 16),
+  "Conv 3 × 3, 32 filters",            "11 × 11 × 32",   conv_params(16, 32),
+  "Global average pooling",            "32",             0,
+  "Dense 16 (embedding)",              "16",             32 * 16 + 16
+)
+
+siamese_architecture %>%
+  mutate(Parameters = format(Parameters, big.mark = ",")) %>%
+  kable(align = "llr")
+```
+
+The encoder has `r format(sum(siamese_architecture$Parameters), big.mark = ",")` parameters in total, shared by both images in a pair rather than doubled, which keeps the model small and fast to train.
+
+The model is trained with contrastive loss. For a same-writer pair, the loss punishes the model if the two embeddings are far apart. For a different-writer pair, it only punishes embeddings that are closer than a set margin: once two different writers' embeddings are far enough apart, there is no extra reward for pushing them further. The embedding size and margin are both hyperparameters. The final model uses an embedding size of 16 and a margin of 0.5, picked by the search described in @sec-hyperparameters.
 
 ## Constructing training pairs
 
-Each training pair starts with one image, and a coin flip decides if the second image should come from the same writer or a different one, giving a roughly even 50/50 split. Both images in a pair always show the same digit. This matters: without it, the network could just learn to spot which digit is in each image instead of who wrote it, since digit shape is a much easier shortcut than handwriting style. Matching on digit forces the network to rely on style clues instead, such as slant and stroke thickness, which carry over even when the digit changes. An image is also never paired with itself.
+Each training pair starts with one image, and a coin flip decides if the second image should come from the same writer or a different one, giving a roughly even 50/50 split. Both images in a pair always show the same digit. This matters because without it, the network could just learn to spot which digit is in each image instead of who wrote it, since digit shape is a much easier shortcut than handwriting style. Matching on digit forces the network to rely on style clues instead, such as slant and stroke thickness, which carry over even when the digit changes. An image is also never paired with itself.
 
-Pairs are only built within one data split, so no image appears in more than one of training, validation or test. The project uses one session split throughout: sessions 1-3 for training, session 4 for validation, and session 5 for test (see @sec-train-test). Using this split, 8,000 pairs were built for the hyperparameter search, 2,000 for validation, and 2,000 for test. Once the best hyperparameters were chosen using validation only, the final model was retrained on 10,000 fresh pairs drawn from sessions 1-4 combined, then tested once on the untouched test pairs.
+Pairs are only built within one data split, so no image appears in more than one of training, validation or test. The project uses one session split throughout: sessions 1-3 for training, session 4 for validation, and session 5 for test (see @sec-train-test). @tbl-siamese-pairs shows how many pairs were built for each stage.
+
+```{r}
+#| label: tbl-siamese-pairs
+#| tbl-cap: "Number of pairs built for each stage of the Siamese network, and the sessions each stage drew from."
+library(tibble)
+
+tibble(
+  Stage = c("Hyperparameter search (train)", "Validation", "Test", "Final model (train)"),
+  Sessions = c("1-3", "4", "5", "1-4"),
+  Pairs = c("8,000", "2,000", "2,000", "10,000")
+) |> kable(align = "llr")
+```
+
+The hyperparameter search, validation and test pairs all come from the same sessions 1-3/4/5 split used throughout the report. Once the best hyperparameters were chosen using validation only, the final model was retrained on a fresh, larger set of pairs drawn from sessions 1-4 combined, then tested once on the untouched test pairs.
 
 ## From distance to a same-writer decision
 
-The model only outputs a distance, not a simple yes or no, so a threshold is needed to turn a distance like 0.21 into "same writer" or "different writer". Many candidate thresholds were tried on the validation pairs, and the one with the best *balanced accuracy* was kept: the average of how often same-writer pairs are correctly caught and how often different-writer pairs are correctly caught. Balanced accuracy was used instead of plain accuracy so the model cannot score well just by leaning toward one answer. The final threshold (0.156) was locked in using validation data only, then reused as is on the test pairs, so no test information affected the decision rule.
+The model only outputs a distance, not a simple yes or no, so a threshold is needed to turn a distance into "same writer" or "different writer". Many candidate thresholds were tried on the validation pairs, and the one with the best *balanced accuracy* was kept. The *balanced accuracy* is the average of how often same-writer pairs are correctly caught and how often different-writer pairs are correctly caught. Balanced accuracy was used instead of plain accuracy so the model cannot score well just by leaning toward one answer. The final threshold (0.156) was locked in using validation data only, then reused as is on the test pairs, so no test information affected the decision rule.
 
 ## Matching performance
 
-The final Siamese network was tested on 2,000 held-out pairs from session 5, which it never saw during training or tuning. It reaches 98.2% balanced accuracy: it correctly spots same-writer pairs 98.9% of the time and different-writer pairs 97.4% of the time (@tbl-siamese-results). In simple terms, given two handwriting samples, the model correctly says whether they are from the same person about 98% of the time, in a session it has never seen before.
+The final Siamese network was tested on 2,000 held-out pairs from session 5, which it never saw during training or tuning. It reaches 98.2% balanced accuracy meaning it correctly spots same-writer pairs 98.9% of the time and different-writer pairs 97.4% of the time (@tbl-siamese-results). In simple terms, given two handwriting samples, the model correctly says whether they are from the same person about 98% of the time, in a session it has never seen before.
 
 ```{r}
 #| label: tbl-siamese-results
@@ -369,11 +402,26 @@ include_graphics(here("task_3", "results", "test_distance_distribution.png"))
 
 ## Does test accuracy overstate cross-session performance?
 
-The train balanced accuracy (77.4%) is lower than both validation and test, which looks backwards at first. Splitting the result by pair type explains why, and it changes how the headline number should be read. On training pairs, same-writer detection is only 57.2%, far below different-writer detection at 97.6%; on test, the two numbers sit close together (98.9% versus 97.4%). The reason is session structure, not a weaker model. Test pairs come only from session 5, so same-writer test pairs are always two images from one sitting, where handwriting stays most consistent. Training same-writer pairs are different: they are drawn from sessions 1-4 and often pair two sittings from the same writer, and handwriting drifts a bit between sessions, making this a genuinely harder problem. The model has learned to spot a writer well within one sitting, but the test set never checks the harder, more realistic case of matching handwriting across different sittings. So the 98.2% test balanced accuracy is best read as a measure of within-session matching, not cross-session matching.
+The train balanced accuracy is 77.4%. This is lower than both validation and test, which looks strange at first. Splitting the result by pair type shows why, and it changes how we should read the headline number. On training pairs, same-writer detection is only 57.2%. This is far below different-writer detection, which sits at 97.6%. On test, the two numbers are close together, at 98.9% and 97.4%. The reason is session structure, not a weaker model. Test pairs only come from session 5. This means same-writer test pairs are always two images from one sitting, where handwriting stays most consistent. Training same-writer pairs are different. They are drawn from sessions 1-4 and often pair two sittings from the same writer, and handwriting drifts a bit between sessions. This makes the training pairs a genuinely harder problem. The model has learned to spot a writer well within one sitting, but the test set never checks the harder, more realistic case of matching handwriting across different sittings. So the 98.2% test balanced accuracy is best read as a measure of within-session matching, not cross-session matching.
 
 ## Quick exploration: matching across two unseen sessions
 
-As a quick extra check, the sessions-1-3-only model, never exposed to session 4 or 5, was tested a different way: on 2,000 pairs forced to pair one session 4 image with one session 5 image, rather than the normal within-session test pairs. Balanced accuracy drops sharply to 66.6%. Same-writer pairs are now only caught 36.7% of the time, while different-writer pairs are still caught 96.5% of the time. This confirms the pattern above directly: the headline test accuracy reported earlier reflects within-session matching, and genuinely cross-session matching is much harder for this model.
+As a quick extra check, we tested the sessions-1-3-only model in a different way. This model was never exposed to session 4 or session 5. We built 2,000 pairs that were forced to pair one session 4 image with one session 5 image, instead of using the normal within-session test pairs. @tbl-siamese-session-comparison compares this cross-session test directly against the normal within-session test from earlier in this section.
+
+```{r}
+#| label: tbl-siamese-session-comparison
+#| tbl-cap: "Within-session test (session 5 only) compared with the forced cross-session test (session 4 paired with session 5), using the same model and threshold."
+library(tibble)
+
+tibble(
+  `Test type` = c("Within-session (normal test)", "Cross-session (forced session 4 vs. 5)"),
+  `Balanced accuracy` = c("98.2%", "66.6%"),
+  `Same-writer rate` = c("98.9%", "36.7%"),
+  `Different-writer rate` = c("97.4%", "96.5%")
+) |> kable(align = "lrrr")
+```
+
+The drop is large, and it sits entirely on the same-writer side. Different-writer pairs are still caught almost as well across sessions, at 96.5%, as within one session, at 97.4%. This is because two different people's handwriting usually looks different no matter which session the images come from. Same-writer pairs are a different story. The rate falls from 98.9% to 36.7%. This happens because one person's own handwriting drifts between sessions more than expected, so the model often fails to recognise it is the same person. This is session drift, the same effect discussed above for the training pairs. It is a good illustration of why the 98.2% headline test accuracy measures within-session matching, not the harder, more realistic case of matching across sessions.
 
 # Hyperparameter Optimisation {#sec-hyperparameters}
 
@@ -415,11 +463,26 @@ summ %>%
 
 ## Siamese network hyperparameter search
 
-The search varied one hyperparameter at a time around a baseline setting, keeping everything else fixed. Two things were varied: the embedding size (8, 16 or 32) and the margin used in the contrastive loss (0.5, 1 or 2). Each setting was trained on sessions 1-3 and scored on validation (session 4) balanced accuracy, since this choice has to stay separate from the untouched test set.
+The search varied one hyperparameter at a time around a baseline setting, and kept everything else fixed. We varied two things, the embedding size (8, 16 or 32) and the margin used in the contrastive loss (0.5, 1 or 2). Each setting was trained on sessions 1-3 and scored on validation (session 4) balanced accuracy, since this choice has to stay separate from the untouched test set.
 
-@fig-siamese-hparams shows the result. All five settings land close together, between 96% and 98% balanced accuracy: baseline 97.0%, smaller embedding 97.1%, larger embedding 97.5%, smaller margin 98.0%, and larger margin 96.0%. The embedding size made almost no difference on its own, since 8, 16 and 32 all score within about half a point of each other. The margin mattered a bit more: the smaller margin (0.5) scored best and the larger margin (2) scored worst, a gap of about two points.
+@tbl-siamese-hparams and @fig-siamese-hparams show the result.
 
-Since the smaller margin setting scored highest on validation, it was chosen for the final model: embedding size 16 and margin 0.5, the same values used throughout the earlier results in this report. Because the differences between settings are small, this is not a strong win, but it is still the best option found, and the model does not seem to depend heavily on getting this exact choice right.
+```{r}
+#| label: tbl-siamese-hparams
+#| tbl-cap: "Validation balanced accuracy of the Siamese network for each hyperparameter setting. Only one value changes from the baseline in each row."
+library(tibble)
+
+tibble(
+  Setting = c("Baseline", "Smaller embedding", "Larger embedding", "Smaller margin", "Larger margin"),
+  `Embedding size` = c(16, 8, 32, 16, 16),
+  Margin = c(1, 1, 1, 0.5, 2),
+  `Balanced accuracy` = c("97.0%", "97.1%", "97.5%", "98.0%", "96.0%")
+) |> kable(align = "lrrr")
+```
+
+All five settings land close together, between 96% and 98% balanced accuracy. The embedding size made almost no difference on its own. Sizes 8, 16 and 32 all score within about half a point of each other. The margin mattered a bit more. The smaller margin (0.5) scored best, and the larger margin (2) scored worst. The gap between them is about two points.
+
+Since the smaller margin setting scored highest on validation, it was chosen for the final model. This means an embedding size of 16 and a margin of 0.5, the same values used throughout the earlier results in this report. The differences between settings are small, so this is not a strong win. It is still the best option found, though, and the model does not seem to depend heavily on getting this exact choice right. Each setting here was trained once rather than over several seeds, unlike the CNN search, so these small differences may partly reflect run-to-run variation rather than a true effect.
 
 ```{r}
 #| label: fig-siamese-hparams
@@ -433,30 +496,92 @@ include_graphics(here("task_3", "results", "hyperparameter_sensitivity.png"))
 
 ## Comparing performance
 
-<!-- Metrics aren't directly comparable: 20-class accuracy (chance 5%) vs pairwise balanced
-accuracy (chance 50%). Practical trade-offs: retraining for new writers.
-CNN: 73.3% (top-3 91.7%) on session 5 vs Siamese 98.2% balanced accuracy on within-session pairs. -->
+<!-- Owner: Daniele -->
+
+The CNN and the Siamese network answer different questions, so their accuracy numbers cannot be compared directly as raw percentages. The CNN picks one writer out of 20 known writers for a single image, so a random guess would be right about 5% of the time. The Siamese network only decides if two images were written by the same person or not, so a random guess would be right about 50% of the time, like a coin flip. Because the two models start from such different chance levels, a fairer comparison looks at how far each model gets above its own chance level, not just at the final score (@tbl-model-comparison).
+
+```{r}
+#| label: tbl-model-comparison
+#| tbl-cap: "CNN and Siamese network performance on session 5, each measured against its own chance level."
+library(tibble)
+
+tibble(
+  Model = c("CNN", "Siamese network"),
+  Task = c("Name which of 20 writers wrote the image", "Decide if two images are from the same writer"),
+  `Chance level` = c("5%", "50%"),
+  `Test score` = c(paste0(pct(acc_final$accuracy_mean), " accuracy"), "98.2% balanced accuracy"),
+  `Above chance` = c(pp(acc_final$accuracy_mean - 0.05), "48.2 pp")
+) |> kable(align = "llrrr")
+```
+
+On the raw numbers, the Siamese network looks better: `r pct(acc_final$accuracy_mean)` for the CNN against 98.2% for the Siamese network. But once chance level is taken into account, the picture is less one-sided. The CNN's score is about `r pp(acc_final$accuracy_mean - 0.05)` above its own chance level of 5%, while the Siamese network's score is about 48.2 pp above its own chance level of 50%. So the CNN is actually further above chance than the Siamese network is, even though its raw accuracy number is lower. This is why the two headline numbers should not be read side by side on their own: a harder task with a low chance level, like naming one writer out of 20, can look worse on paper than an easier task with a high chance level, like a same-or-different decision, even when the model on the harder task is doing comparatively more work.
+
+There is also a practical difference between the two models that the numbers alone do not show. The CNN can only recognise the 20 writers it was trained on. A new person who was not in the training data cannot be identified at all, and adding them would mean retraining the model from scratch. The Siamese network does not need to know who a person is, only whether two images look like they came from the same person, so in principle it could compare handwriting from someone outside the original 20 writers without retraining. This project does not test that case directly, since every image used here comes from the same 20 writers, but it is a meaningful practical advantage of the Siamese approach for a system that might need to handle new people later.
 
 ## Which digits carry the most writer information
 
-<!-- CNN accuracy by digit vs Siamese balanced accuracy by digit. Do they agree? Why?
-CNN: 72-75% for all digits, differences within seed noise. Exploration: style features (slant, height) apply to all digits; the digit 1 has little individual shape. -->
+<!-- Owner: Daniele -->
+
+The CNN's per-digit accuracy is already shown in @sec-cnn (@fig-cnn-digit). To compare this with the Siamese network, we built a fresh set of same-digit test pairs for each digit on its own, then scored the already-trained Siamese model on each set using the usual locked-in threshold. @tbl-digit-comparison puts the two side by side.
+
+```{r}
+#| label: tbl-digit-comparison
+#| tbl-cap: "CNN test accuracy and Siamese network balanced accuracy by digit, both on session 5."
+
+digit_14 %>%
+  arrange(digit) %>%
+  transmute(Digit = digit, `CNN accuracy` = pct(accuracy_mean)) %>%
+  mutate(`Siamese balanced accuracy` = c("99.5%", "97.2%", "97.5%", "97.1%", "99.0%")) %>%
+  kable(align = "lrr")
+```
+
+Both models tell the same story: no digit stands out as clearly easier or harder. For the CNN, accuracy is between `r pct_range(digit_14$accuracy_mean)` across all five digits, and this small spread is within the normal seed-to-seed noise (@sec-cnn). For the Siamese network, balanced accuracy is between 97.1% and 99.5%, a similarly small spread, although this check only used one run rather than several seeds, so part of this spread may also just be noise rather than a real digit effect.
+
+This agreement makes sense given what the data exploration found in @sec-exploration. The features that separate writers, such as slant and stroke thickness, come from a person's handwriting style and show up in the same way regardless of which digit is drawn. Since neither model has a particular digit to rely on for extra writer information, it is expected that performance stays roughly flat across digits for both of them.
 
 ## How session changes affect performance
 
-<!-- Sessions 1-3 vs 1-4 training comparison for both models. What this says about drift.
-CNN: +6.0 pp from one extra training session (67.3% -> 73.3%); errors concentrated in few writers; combining 25 images only 73% -> 77%.
-Siamese: 98.2% within session 5 vs 66.6% across sessions 4/5. Both point to session drift as the main difficulty. -->
+<!-- Owner: Daniele -->
+
+Both models are affected by the same underlying problem: a person's handwriting is not perfectly stable from one recording session to the next, which we first saw in @sec-exploration. @tbl-session-comparison pulls together how each model is affected by this.
+
+```{r}
+#| label: tbl-session-comparison
+#| tbl-cap: "How each model's performance on session 5 changes with the amount or type of session information used."
+library(tibble)
+
+tibble(
+  Model = c("CNN", "Siamese network"),
+  Comparison = c("Trained on sessions 1-3 vs. sessions 1-4 (one extra training session)", "Tested within one session vs. across two unseen sessions"),
+  `Lower result` = c(paste0(pct(acc_13$accuracy_mean), " (sessions 1-3)"), "66.6% (across sessions 4 and 5)"),
+  `Higher result` = c(paste0(pct(acc_final$accuracy_mean), " (sessions 1-4)"), "98.2% (within session 5)"),
+  Difference = c(pp(acc_final$accuracy_mean - acc_13$accuracy_mean), "31.6 pp")
+) |> kable(align = "llrrr")
+```
+
+The two rows are not testing exactly the same thing. For the CNN, we changed how much training data the model saw, by adding one extra recording session, and both numbers come from testing on session 5. For the Siamese network, we kept the same model and instead changed what kind of pairs it was tested on: pairs from one session, or pairs forced across two different, unseen sessions. Even so, both rows point to the same conclusion. Giving the CNN one more training session, which lets it see more of each writer's session-to-session variation, raises its accuracy by `r pp(acc_final$accuracy_mean - acc_13$accuracy_mean)`. Testing the Siamese network across sessions it has never combined before drops its balanced accuracy by 31.6 percentage points. In both cases, the model struggles more as soon as a new, unseen session is involved, which matches the finding from the data exploration that a writer's own handwriting can change more between sessions than two different writers' handwriting differs within one session.
+
+The CNN result also shows that this is not simply fixed by adding more training data. Combining several same-writer images only raises accuracy from `r pct(agg$accuracy_mean[agg$k == 1])` with one image to `r pct(agg$accuracy_mean[agg$k == max(agg$k)])` with `r max(agg$k)` images (@sec-cnn), a small gain that shows the CNN's errors are concentrated in specific writers rather than spread randomly across all of them. This fits the same picture: session drift hits some writers harder than others, and it is the main difficulty for both models.
 
 # Collaboration and Reproducibility
 
-<!-- Owner: both | ~150 words | Brief Tasks 7 and 9
-Branches (cnn, siamese-network, data_exploration, dev), pull requests, shared R/ functions,
-CI workflow, renv, GitHub Pages published programmatically. -->
+<!-- Owner: Daniele -->
+
+We worked in separate GitHub branches, one per task (`data_exploration`, `cnn`, `siamese-network`), and merged each into a shared `dev` branch through pull requests once it was finished, keeping `main` for the version we submit. All task scripts share one small set of functions in the `R/` folder, for loading data, building models, checking accuracy and plotting, so the same code is reused across tasks instead of being rewritten each time.
+
+A continuous integration (CI) workflow runs automatically on every push and pull request. It checks that every R script in the project parses without errors, loads the shared functions to make sure nothing is broken, and renders the full report. This catches mistakes, such as a typo that would stop the report from knitting, before they reach `dev`.
+
+The report itself only reads saved results and does not retrain any model, so it renders in seconds. To reproduce everything from scratch, the task scripts are run in a fixed order (listed in the appendix), each saving its own results, followed by rendering the report. Random seeds are set for both R and TensorFlow/Keras in each script, so repeated runs give the same numbers.
 
 # Conclusion
 
-<!-- Owner: both | ~250 words: main findings, key limitations, next steps. -->
+<!-- Owner: Daniele -->
+
+This project trained two different models on the same handwriting data set to answer two different questions, and the two should not be judged number for number against each other. The CNN identifies which of 20 writers wrote a single image, where a random guess would be right 5% of the time, while the Siamese network only decides whether two images come from the same writer, where a random guess would be right 50% of the time. On session 5, the final CNN picks the correct writer 73.3% of the time, and the right writer is among its top three guesses 91.7% of the time. The Siamese network correctly matches same-or-different writer pairs 98.2% of the time, as long as both images come from one recording session.
+
+The biggest limitation for both models is session drift: a person's own handwriting changes between recording sessions more than two different people's handwriting differs within one session. This shows up clearly in both models. The CNN improves noticeably when given one extra training session, and its errors are concentrated in a few writers rather than spread evenly across all of them. The Siamese network's balanced accuracy drops from 98.2% to 66.6% when it is forced to match images from two sessions it has never combined before, a more realistic test than the usual within-session pairs.
+
+Neither model has a clear overall advantage. The CNN gets further above its own chance level, but it can never recognise a writer outside the 20 it was trained on. The Siamese network could in principle handle a new, unseen writer without retraining, since it only compares handwriting style rather than naming a specific person, although this project did not test that case directly. With more time, useful next steps would be testing the Siamese network on genuinely new writers, and repeating its hyperparameter search over several random seeds, the way the CNN search already was.
 
 # References {.unnumbered}
 
