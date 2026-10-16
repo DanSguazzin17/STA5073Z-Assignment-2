@@ -14,7 +14,7 @@ sessions × 50 replicates) to answer two questions:
 | Siamese network | Pairs within session 5 | 98.2% balanced accuracy |
 | Siamese network | Pairs across sessions 4 and 5 | 66.6% balanced accuracy |
 
-The full write-up is in [`report.qmd`](report.qmd). Group members and roles are in [`roles.txt`](roles.txt).
+The full write-up is in [`report.qmd`](report.qmd), and also hosted as a live website at [GitHub Pages link] (add once published). Group members and roles are in [`roles.txt`](roles.txt).
 
 ---
 
@@ -31,7 +31,7 @@ The full write-up is in [`report.qmd`](report.qmd). Group members and roles are 
 ├── task_2/                  Task 2: CNN for writer identification
 ├── task_3/                  Task 3: Siamese network (incl. its hyperparameter search)
 ├── task_5/                  Task 5: hyperparameter tuning of the CNN
-└── .github/workflows/       CI: checks that all R files parse and that the report renders
+└── .github/workflows/       CI: checks that all R files parse and renders the report; also publishes the report to GitHub Pages on push to main
 ```
 
 Each task folder contains its script(s), its figures and, where needed, a `results/` folder with
@@ -119,3 +119,5 @@ The report only reads the saved results and figures, so it renders in seconds.
   merged into `dev` through pull requests.
 - The CI workflow runs on every push and pull request: it checks that all R files parse, loads the
   shared functions and renders the report.
+- A second workflow runs when `main` is updated: it renders the report and pushes it to the
+  `gh-pages` branch, so the live website is published automatically rather than by hand.

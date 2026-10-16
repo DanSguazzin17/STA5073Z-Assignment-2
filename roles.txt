@@ -9,7 +9,7 @@ Daniele Sguazzin (SGZDAN001)
   including pair construction, contrastive loss, threshold selection and the
   cross-session check
 - Task 5: hyperparameter search for the Siamese network
-- Report: report template and cover page, Siamese network sections
+- Report: report template and cover page, Siamese network sections, hyperparameter search, results comaprions, collaboration and conclusions. 
 
 Lucas Henze (HNZLUC002)
 - Task 1: data exploration (task_1/data_exploration.R)
