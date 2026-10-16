@@ -191,9 +191,6 @@ Not included in the word count. Fill in one row per task. The owner of each task
 | 6. Comparing CNN and Siamese results | Claude (Anthropic AI assistant) | Used to debug the code for a new per-digit check, and to help the comparison write-up flow better and read more clearly in simple language. For the CNN, Claude also helped to interpret the results per writer and for several images. | CNN numbers taken from existing, already-checked report variables. New per-digit Siamese numbers checked against script output. Reworded text checked against the original content. | Used for debugging support, interpretation support and wording improvements. |
 | 7. Git and GitHub collaboration | Claude (Anthropic AI assistant) | Used for guidance on git and GitHub issues, such as fixing a pull request opened against the wrong base branch, merging branches and resolving file conflicts. Claude also drafted the CI workflow. | All git commands and GitHub actions performed and checked manually, not by the AI. | Guidance and the CI workflow file. |
 | 8. Written report | Claude (Anthropic AI assistant) | Used for the document structure and the Markdown/R code of the report, to help sections flow better and read in simpler, plainer language, and to help with formatting, such as turning prose-heavy number lists into tables. | Each reworded paragraph and table checked against the original content and underlying script output to confirm nothing changed in meaning or numbers. | Siamese sections: wording and formatting improvements only. CNN sections: wording and formatting, especially with markdown. |
-| 9. GitHub Pages website | | | | |
-
-: AI use by task. {#tbl-ai-use}
 
 : AI use by task. {#tbl-ai-use}
 
